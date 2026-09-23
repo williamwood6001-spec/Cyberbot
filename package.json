@@ -1,0 +1,10 @@
+{
+  "name": "cyberbot",
+  "version": "5.0.0",
+  "description": "Defensive cybersecurity Telegram bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "netlify dev"
+  },
+  "dependencies": {}
+}
