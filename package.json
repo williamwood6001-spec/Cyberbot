@@ -2,8 +2,5 @@
   "name": "cyberbot",
   "version": "2.0.0",
   "description": "Defensive cybersecurity Telegram bot",
-  "type": "module",
-  "dependencies": {
-    "@netlify/functions": "^3.0.0"
-  }
+  "dependencies": {}
 }
