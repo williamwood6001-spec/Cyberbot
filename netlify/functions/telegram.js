@@ -1,10 +1,6 @@
-import { Handler } from "@netlify/functions";
-import crypto from "crypto";
-import dns from "dns/promises";
-import https from "https";
-import http from "http";
-import tls from "tls";
-import { URL } from "url";
+const crypto = require("crypto");
+const dns = require("dns").promises;
+const tls = require("tls");
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const ADMIN_USER_ID = process.env.ADMIN_USER_ID;
@@ -35,11 +31,16 @@ function getArg(text) {
 }
 
 function hostnameFromInput(input) {
-  if (!input) throw new Error("No domain supplied.");
+  if (!input) {
+    throw new Error("No domain supplied.");
+  }
 
   let value = input.trim();
 
-  if (!value.startsWith("http://") && !value.startsWith("https://")) {
+  if (
+    !value.startsWith("http://") &&
+    !value.startsWith("https://")
+  ) {
     value = "https://" + value;
   }
 
@@ -53,17 +54,20 @@ function hostnameFromInput(input) {
 }
 
 function normalizeUrl(input) {
-  if (!input) throw new Error("No URL supplied.");
+  if (!input) {
+    throw new Error("No URL supplied.");
+  }
 
   let value = input.trim();
 
-  if (!value.startsWith("http://") && !value.startsWith("https://")) {
+  if (
+    !value.startsWith("http://") &&
+    !value.startsWith("https://")
+  ) {
     value = "https://" + value;
   }
 
-  const url = new URL(value);
-
-  return url;
+  return new URL(value);
 }
 
 async function dnsLookup(hostname) {
@@ -71,7 +75,7 @@ async function dnsLookup(hostname) {
     all: true
   });
 
-  return results.map(x => x.address);
+  return results.map(result => result.address);
 }
 
 function hashText(text) {
@@ -97,25 +101,47 @@ function passwordStrength(password) {
   let score = 0;
   const suggestions = [];
 
-  if (password.length >= 8) score++;
-  else suggestions.push("Use at least 8 characters.");
+  if (password.length >= 8) {
+    score++;
+  } else {
+    suggestions.push("Use at least 8 characters.");
+  }
 
-  if (password.length >= 12) score++;
+  if (password.length >= 12) {
+    score++;
+  }
 
-  if (/[a-z]/.test(password)) score++;
-  else suggestions.push("Add lowercase letters.");
+  if (/[a-z]/.test(password)) {
+    score++;
+  } else {
+    suggestions.push("Add lowercase letters.");
+  }
 
-  if (/[A-Z]/.test(password)) score++;
-  else suggestions.push("Add uppercase letters.");
+  if (/[A-Z]/.test(password)) {
+    score++;
+  } else {
+    suggestions.push("Add uppercase letters.");
+  }
 
-  if (/[0-9]/.test(password)) score++;
-  else suggestions.push("Add numbers.");
+  if (/[0-9]/.test(password)) {
+    score++;
+  } else {
+    suggestions.push("Add numbers.");
+  }
 
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-  else suggestions.push("Add symbols.");
+  if (/[^A-Za-z0-9]/.test(password)) {
+    score++;
+  } else {
+    suggestions.push("Add symbols.");
+  }
 
-  if (score <= 2) return ["🔴 Weak", suggestions];
-  if (score <= 4) return ["🟡 Moderate", suggestions];
+  if (score <= 2) {
+    return ["🔴 Weak", suggestions];
+  }
+
+  if (score <= 4) {
+    return ["🟡 Moderate", suggestions];
+  }
 
   return ["🟢 Strong", suggestions];
 }
@@ -151,9 +177,11 @@ async function tlsInfo(hostname) {
         rejectUnauthorized: true
       },
       () => {
+        const cipher = socket.getCipher();
+
         const result = {
           protocol: socket.getProtocol(),
-          cipher: socket.getCipher()?.name || "Unknown"
+          cipher: cipher ? cipher.name : "Unknown"
         };
 
         socket.end();
@@ -179,6 +207,10 @@ async function handleCommand(message) {
   const arg = getArg(text);
 
   try {
+
+    // =========================
+    // START
+    // =========================
 
     if (command === "/start") {
       return sendMessage(
@@ -215,6 +247,10 @@ or are authorized to assess.`
       );
     }
 
+    // =========================
+    // HELP
+    // =========================
+
     if (command === "/help") {
       return sendMessage(
         chatId,
@@ -234,6 +270,10 @@ or are authorized to assess.`
       );
     }
 
+    // =========================
+    // WHOAMI
+    // =========================
+
     if (command === "/whoami") {
       const user = message.from;
 
@@ -246,6 +286,10 @@ Username: ${user.username ? "@" + user.username : "None"}
 User ID: ${user.id}`
       );
     }
+
+    // =========================
+    // DNS
+    // =========================
 
     if (command === "/dns") {
       const hostname = hostnameFromInput(arg);
@@ -261,6 +305,10 @@ ${addresses.map(x => "• " + x).join("\n")}`
       );
     }
 
+    // =========================
+    // IP
+    // =========================
+
     if (command === "/ip") {
       const hostname = hostnameFromInput(arg);
       const addresses = await dnsLookup(hostname);
@@ -271,10 +319,14 @@ ${addresses.map(x => "• " + x).join("\n")}`
 
 Host: ${hostname}
 
-IPv4/IPv6:
+Addresses:
 ${addresses.map(x => "• " + x).join("\n")}`
       );
     }
+
+    // =========================
+    // TLS
+    // =========================
 
     if (command === "/tls") {
       const hostname = hostnameFromInput(arg);
@@ -292,6 +344,10 @@ Cipher: ${info.cipher}
 ✅ TLS connection succeeded.`
       );
     }
+
+    // =========================
+    // HEADERS
+    // =========================
 
     if (command === "/headers") {
       const url = normalizeUrl(arg);
@@ -324,6 +380,10 @@ HTTP Status: ${result.status}
       return sendMessage(chatId, output);
     }
 
+    // =========================
+    // URL CHECK
+    // =========================
+
     if (command === "/urlcheck") {
       const url = normalizeUrl(arg);
 
@@ -338,16 +398,24 @@ Password: ${url.password ? "⚠️ Present" : "None"}
 
 `;
 
-      output += url.protocol === "https:"
-        ? "✅ HTTPS is being used."
-        : "⚠️ URL is not using HTTPS.";
+      output +=
+        url.protocol === "https:"
+          ? "✅ HTTPS is being used."
+          : "⚠️ URL is not using HTTPS.";
 
       return sendMessage(chatId, output);
     }
 
+    // =========================
+    // HASH
+    // =========================
+
     if (command === "/hash") {
       if (!arg) {
-        return sendMessage(chatId, "Usage:\n/hash hello world");
+        return sendMessage(
+          chatId,
+          "Usage:\n/hash hello world"
+        );
       }
 
       const hashes = hashText(arg);
@@ -369,6 +437,10 @@ ${hashes.MD5}`
       );
     }
 
+    // =========================
+    // PASSWORD
+    // =========================
+
     if (command === "/password") {
       if (!arg) {
         return sendMessage(
@@ -377,7 +449,8 @@ ${hashes.MD5}`
         );
       }
 
-      const [rating, suggestions] = passwordStrength(arg);
+      const [rating, suggestions] =
+        passwordStrength(arg);
 
       let output =
 `🔐 PASSWORD CHECK
@@ -388,22 +461,32 @@ Length: ${arg.length} characters
 
       if (suggestions.length) {
         output += "\nSuggestions:\n";
-        output += suggestions.map(x => "• " + x).join("\n");
+        output += suggestions
+          .map(x => "• " + x)
+          .join("\n");
       }
 
       output +=
-`\n\n⚠️ Basic strength check only.
-Do not use this as a password auditor.`;
+`\n\n⚠️ Basic strength check only.`;
 
       return sendMessage(chatId, output);
     }
 
+    // =========================
+    // GENERATE
+    // =========================
+
     if (command === "/generate") {
       let length = parseInt(arg || "20", 10);
 
-      if (Number.isNaN(length)) length = 20;
+      if (Number.isNaN(length)) {
+        length = 20;
+      }
 
-      length = Math.max(12, Math.min(length, 64));
+      length = Math.max(
+        12,
+        Math.min(length, 64)
+      );
 
       const alphabet =
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
@@ -415,7 +498,10 @@ Do not use this as a password auditor.`;
 
       for (let i = 0; i < length; i++) {
         password += alphabet[
-          crypto.randomInt(0, alphabet.length)
+          crypto.randomInt(
+            0,
+            alphabet.length
+          )
         ];
       }
 
@@ -431,12 +517,20 @@ Store it in a password manager.`
       );
     }
 
+    // =========================
+    // STATUS
+    // =========================
+
     if (command === "/status") {
       if (
         !ADMIN_USER_ID ||
-        String(message.from.id) !== String(ADMIN_USER_ID)
+        String(message.from.id) !==
+          String(ADMIN_USER_ID)
       ) {
-        return sendMessage(chatId, "⛔ Admin command.");
+        return sendMessage(
+          chatId,
+          "⛔ Admin command."
+        );
       }
 
       return sendMessage(
@@ -450,8 +544,13 @@ Mode: Webhook`
       );
     }
 
+    // =========================
+    // SCAN
+    // =========================
+
     if (command === "/scan") {
-      const hostname = hostnameFromInput(arg);
+      const hostname =
+        hostnameFromInput(arg);
 
       await sendMessage(
         chatId,
@@ -459,43 +558,67 @@ Mode: Webhook`
       );
 
       let dnsResult = "❌ DNS failed";
-      let ip = "";
 
       try {
-        const addresses = await dnsLookup(hostname);
-        ip = addresses[0];
-        dnsResult = `✅ DNS resolved\nIP: ${addresses.join(", ")}`;
+        const addresses =
+          await dnsLookup(hostname);
+
+        dnsResult =
+`✅ DNS resolved
+IP: ${addresses.join(", ")}`;
+
       } catch {}
 
-      let tlsResult = "❌ TLS failed";
+      let tlsResult =
+        "❌ TLS failed";
 
       try {
-        const info = await tlsInfo(hostname);
+        const info =
+          await tlsInfo(hostname);
+
         tlsResult =
-          `✅ TLS: ${info.protocol}\nCipher: ${info.cipher}`;
+`✅ TLS: ${info.protocol}
+Cipher: ${info.cipher}`;
+
       } catch {}
 
       let headerResult = "";
 
       try {
-        const result = await httpsHeaders(
-          `https://${hostname}`
-        );
+        const result =
+          await httpsHeaders(
+            `https://${hostname}`
+          );
 
         const checks = [
-          ["strict-transport-security", "HSTS"],
-          ["content-security-policy", "CSP"],
-          ["x-content-type-options", "X-Content-Type-Options"],
-          ["x-frame-options", "X-Frame-Options"]
+          [
+            "strict-transport-security",
+            "HSTS"
+          ],
+          [
+            "content-security-policy",
+            "CSP"
+          ],
+          [
+            "x-content-type-options",
+            "X-Content-Type-Options"
+          ],
+          [
+            "x-frame-options",
+            "X-Frame-Options"
+          ]
         ];
 
         for (const [header, label] of checks) {
-          headerResult += result.headers[header]
-            ? `✅ ${label}\n`
-            : `⚠️ ${label} missing\n`;
+          headerResult +=
+            result.headers[header]
+              ? `✅ ${label}\n`
+              : `⚠️ ${label} missing\n`;
         }
+
       } catch {
-        headerResult = "⚠️ HTTPS headers unavailable";
+        headerResult =
+          "⚠️ HTTPS headers unavailable";
       }
 
       return sendMessage(
@@ -514,10 +637,14 @@ ${tlsResult}
 🧱 SECURITY HEADERS
 ${headerResult}
 
-ℹ️ This is a basic defensive
-configuration check.`
+ℹ️ Basic defensive
+configuration check only.`
       );
     }
+
+    // =========================
+    // UNKNOWN
+    // =========================
 
     return sendMessage(
       chatId,
@@ -525,6 +652,9 @@ configuration check.`
     );
 
   } catch (error) {
+
+    console.error(error);
+
     return sendMessage(
       chatId,
       `❌ Error:\n${error.message}`
@@ -532,12 +662,25 @@ configuration check.`
   }
 }
 
-export const handler = async (event) => {
+// ========================================
+// NETLIFY FUNCTION
+// ========================================
 
-  if (event.httpMethod !== "POST") {
+exports.handler = async (event) => {
+
+  // Browser test
+  if (event.httpMethod === "GET") {
     return {
       statusCode: 200,
       body: "CyberBot is running."
+    };
+  }
+
+  // Telegram webhook
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      body: "Method not allowed."
     };
   }
 
@@ -549,10 +692,13 @@ export const handler = async (event) => {
   }
 
   try {
-    const update = JSON.parse(event.body);
+    const update =
+      JSON.parse(event.body);
 
     if (update.message) {
-      await handleCommand(update.message);
+      await handleCommand(
+        update.message
+      );
     }
 
     return {
@@ -561,11 +707,12 @@ export const handler = async (event) => {
     };
 
   } catch (error) {
+
     console.error(error);
 
     return {
       statusCode: 500,
-      body: "Internal error"
+      body: "Internal error."
     };
   }
 };
